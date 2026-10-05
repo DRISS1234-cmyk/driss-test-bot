@@ -148,14 +148,29 @@
     ]);
   }
 
+  // Current Supabase access token (supabase-js refreshes it if it has expired).
+  // This is the visitor's own short-lived token, not a secret key.
+  async function getAccessToken() {
+    var client = getDb();
+    if (!client) throw new Error('Supabase client not available');
+    await ensureUserId(client); // makes sure an (anonymous) session exists
+    var s = await client.auth.getSession();
+    if (!s.data || !s.data.session) throw new Error('No Supabase session');
+    return s.data.session.access_token;
+  }
+
   // Calls the Netlify Function. Resolves to a reply string or throws.
   async function requestAssistantResponse(message, conversationId) {
     var controller = new AbortController();
     var timer = setTimeout(function () { controller.abort(); }, ASSISTANT_TIMEOUT_MS);
     try {
+      var accessToken = await getAccessToken();
       var res = await fetch(ASSISTANT_ENDPOINT, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + accessToken
+        },
         body: JSON.stringify({ message: message, conversation_id: conversationId }),
         signal: controller.signal
       });
