@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chat function security test</title>
+<style>
+  body{font-family:system-ui,sans-serif;margin:16px;background:#111;color:#eee;line-height:1.4}
+  button{font:inherit;padding:12px 18px;border:0;border-radius:8px;background:#b8922a;color:#111;font-weight:600}
+  .r{padding:10px 12px;margin:8px 0;border-radius:6px;background:#1d1d1d;border-left:5px solid #666;font-size:14px}
+  .ok{border-left-color:#3fb26b}.bad{border-left-color:#e5484d}
+  small{color:#aaa;display:block;margin-top:2px;word-break:break-all}
+</style>
+</head>
+<body>
+<h2>Chat function security test</h2>
+<p>Temporary dev page. Delete it when you are done. It signs in two anonymous test users (A and B).</p>
+<button id="go">Run tests</button>
+<div id="out"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SB_URL = 'https://sqnrcgwspvmnvromfazj.supabase.co';
+const SB_KEY = 'sb_publishable_deSnqH-5Dp9qLFZMm-wC0Q_znsD6V1x'; // public key
+const EP = '/.netlify/functions/chat';
+const out = document.getElementById('out');
+
+function show(name, expected, got, note) {
+  const d = document.createElement('div');
+  d.className = 'r ' + (expected === got ? 'ok' : 'bad');
+  d.textContent = (expected === got ? 'PASS  ' : 'FAIL  ') + name + '  (expected ' + expected + ', got ' + got + ')';
+  if (note) { const s = document.createElement('small'); s.textContent = note; d.appendChild(s); }
+  out.appendChild(d);
+}
+
+async function call(method, token, body) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  const r = await fetch(EP, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+  return { status: r.status, text: await r.text() };
+}
+
+async function session(client) {
+  let s = (await client.auth.getSession()).data.session;
+  if (!s) {
+    const r = await client.auth.signInAnonymously();
+    if (r.error) throw r.error;
+    s = r.data.session;
+  }
+  return s;
+}
+
+async function conversation(client, userId) {
+  const f = await client.from('chat_conversations').select('id')
+    .eq('user_id', userId).eq('status', 'open').order('created_at', { ascending: false }).limit(1);
+  if (f.error) throw f.error;
+  if (f.data.length) return f.data[0].id;
+  const c = await client.from('chat_conversations').insert({ user_id: userId, status: 'open' }).select('id').single();
+  if (c.error) throw c.error;
+  return c.data.id;
+}
+
+document.getElementById('go').onclick = async () => {
+  out.textContent = 'Running...';
+  try {
+    out.textContent = '';
+    // Two separate anonymous users (separate storage keys)
+    const A = supabase.createClient(SB_URL, SB_KEY, { auth: { storageKey: 'dd-test-user-a' } });
+    const B = supabase.createClient(SB_URL, SB_KEY, { auth: { storageKey: 'dd-test-user-b' } });
+    const sa = await session(A), sb = await session(B);
+    const convA = await conversation(A, sa.user.id);
+    const convB = await conversation(B, sb.user.id);
+    const msg = { message: 'I need a website' };
+
+    let r = await call('POST', null, { ...msg, conversation_id: convA });
+    show('B  no Authorization header', 401, r.status);
+
+    r = await call('POST', 'not-a-real-token', { ...msg, conversation_id: convA });
+    show('C  invalid Bearer token', 401, r.status);
+
+    r = await call('POST', sa.access_token, { ...msg, conversation_id: null });
+    show('A  valid token, no conversation_id', 200, r.status, r.text);
+
+    r = await call('POST', sa.access_token, { ...msg, conversation_id: convA });
+    show('E  valid token, own conversation', 200, r.status, r.text);
+
+    r = await call('POST', sa.access_token, { ...msg, conversation_id: convB });
+    show("D  valid token, ANOTHER user's conversation", 403, r.status, r.text);
+
+    r = await call('POST', sa.access_token, { message: '   ' });
+    show('    empty message', 400, r.status);
+
+    r = await call('GET', sa.access_token);
+    show('F  GET', 405, r.status);
+
+    r = await call('OPTIONS', null);
+    show('G  OPTIONS', 204, r.status);
+
+    // Best effort only: serverless memory may be split across instances.
+    let got429 = 0;
+    for (let i = 0; i < 25; i++) {
+      r = await call('POST', sa.access_token, { message: 'ping ' + i, conversation_id: convA });
+      if (r.status === 429) { got429 = 429; break; }
+    }
+    show('H  rate limit (25 rapid requests, best effort)', 429, got429);
+  } catch (e) {
+    out.textContent = 'Test error: ' + (e && e.message ? e.message : e);
+  }
+};
+</script>
+</body>
+  </html>
