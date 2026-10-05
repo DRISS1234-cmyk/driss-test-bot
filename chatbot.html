@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>DRISS DIGITALS – Chatbot (standalone test)</title>
+  <link rel="stylesheet" href="chatbot.css">
+</head>
+<body class="dd-test-page">
+
+  <!-- Test page content only. Remove this <main> when embedding the widget elsewhere. -->
+  <main class="dd-test-copy">
+    <h1>Chatbot test page</h1>
+    <p>The chat button is in the bottom-right corner.</p>
+  </main>
+
+  <!-- ===== DRISS DIGITALS CHATBOT WIDGET (copy from here to the script tag) ===== -->
+  <div class="dd-chat" id="ddChat">
+
+    <button class="dd-launcher" id="ddLauncher" type="button"
+            aria-label="Open chat with DRISS DIGITALS"
+            aria-expanded="false" aria-controls="ddWindow">
+      <svg class="dd-icon dd-icon-chat" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-8l-5 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/>
+      </svg>
+      <svg class="dd-icon dd-icon-close" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6 6l12 12M18 6L6 18"/>
+      </svg>
+    </button>
+
+    <section class="dd-window" id="ddWindow" role="dialog" aria-label="Chat with DRISS DIGITALS">
+
+      <header class="dd-header">
+        <div class="dd-brand">
+          <span class="dd-brand-name">DRISS DIGITALS</span>
+          <span class="dd-status"><span class="dd-dot" aria-hidden="true"></span>Usually replies instantly</span>
+        </div>
+        <button class="dd-close" id="ddClose" type="button" aria-label="Close chat">
+          <svg class="dd-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </header>
+
+      <div class="dd-messages" id="ddMessages" role="log" aria-live="polite" aria-label="Chat messages"></div>
+
+      <div class="dd-quick" id="ddQuick" aria-label="Suggested questions">
+        <button type="button" class="dd-chip">How much does a website cost?</button>
+        <button type="button" class="dd-chip">What services do you offer?</button>
+        <button type="button" class="dd-chip">Can you build an online store?</button>
+        <button type="button" class="dd-chip">I want a website</button>
+      </div>
+
+      <form class="dd-form" id="ddForm" autocomplete="off">
+        <label class="dd-sr" for="ddInput">Type your message</label>
+        <input class="dd-input" id="ddInput" type="text" placeholder="Type your message…" maxlength="500">
+        <button class="dd-send" id="ddSend" type="submit" aria-label="Send message">
+          <svg class="dd-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l16-8-6 16-3-7-7-1z"/></svg>
+        </button>
+      </form>
+
+    </section>
+  </div>
+  <!-- ===== END WIDGET ===== -->
+
+  <!-- Same Supabase library the site already uses. If this widget is placed
+       on index.html, which already loads it, omit this line. -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="chatbot.js"></script>
+</body>
+</html>
